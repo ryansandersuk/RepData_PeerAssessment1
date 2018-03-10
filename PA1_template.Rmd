@@ -6,21 +6,20 @@ output:
 ---
 
 ```{r setup, echo=FALSE, message=FALSE}
-library(dplyr)
-library(lattice)
-
 setwd("~/git/RepData_PeerAssessment1")
 ```
 
 ```{r environment}
+library(dplyr)
+library(lattice)
+
 sessionInfo()
 ```
 
 ## Loading and preprocessing the data
 
 ```{r load, results="hide"}
-unzip("activity.zip")
-activity <- read.csv("activity.csv")
+activity <- read.csv(unz("activity.zip", filename = "activity.csv"))
 
 activity$date <- as.Date(activity$date)
 ```
@@ -30,8 +29,8 @@ activity$date <- as.Date(activity$date)
 ### Calculate the total number of steps taken per day
 
 ```{r total_steps_by_day}
-activity.by_day <-
-    group_by(activity, date) %>%
+activity.by_day <- activity %>%
+    group_by(date) %>%
     summarize(total_steps = sum(steps, na.rm = TRUE))
 ```
 
@@ -60,8 +59,8 @@ median(activity.by_day$total_steps, na.rm = TRUE)
 ### Make a time series plot of the 5-minute interval and the average number of steps taken, averaged across all days
 
 ```{r plot_average_steps_by_interval}
-activity.by_interval <-
-    group_by(activity, interval) %>%
+activity.by_interval <- activity %>%
+    group_by(interval) %>%
     summarize(average_steps = mean(steps, na.rm = TRUE))
 
 plot(
@@ -94,8 +93,8 @@ sum(is.na(activity$steps))
 Will use the average for the interval for missing values for that interval. The average for the interval was calculated earlier, first will join the two data frames.
 
 ```{r strategy_for_missing_values}
-activity.strategy_missing_values <-
-    inner_join(activity, activity.by_interval, by = "interval")
+activity.strategy_missing_values <- activity %>%
+    inner_join(activity.by_interval, by = "interval")
 ```
 
 ### Create a new dataset that is equal to the original dataset but with the missing data filled in
@@ -103,17 +102,16 @@ activity.strategy_missing_values <-
 Check if the number of steps is NA, and use the average if so. Otherwise, just reuse the number of steps. Finally, select the columns of interest (can drop average_steps at this point).
 
 ```{r fill_missing_values}
-activity.fill_missing <-
-    mutate(activity.strategy_missing_values,
-           steps = ifelse(is.na(steps), average_steps, steps)) %>%
+activity.fill_missing <- activity.strategy_missing_values %>%
+    mutate(steps = ifelse(is.na(steps), average_steps, steps)) %>%
     select(steps, date, interval)
 ```
 
 ### Make a histogram of the total number of steps taken each day and calculate and report the mean and median total number of steps taken per day
 
 ```{r total_steps_by_day_after_imputation}
-activity.by_day.after_imputation <-
-    group_by(activity.fill_missing, date) %>%
+activity.by_day.after_imputation <- activity.fill_missing %>%
+    group_by(date) %>%
     summarize(total_steps = sum(steps, na.rm = TRUE))
 
 hist(
@@ -141,9 +139,8 @@ After imputation, the distribution appears closer to a normal distribution.
 ### Create a new factor variable in the dataset with two levels – “weekday” and “weekend”
 
 ```{r add_factor}
-activity.fill_missing.add_factor <-
-    mutate(activity.fill_missing,
-           date.type = ifelse(
+activity.fill_missing.add_factor <- activity.fill_missing %>%
+    mutate(date.type = ifelse(
                weekdays(date, abbr = TRUE) %in% c("Sat", "Sun"),
                "weekend",
                "weekday"))
@@ -154,8 +151,8 @@ activity.fill_missing.add_factor$date.type <-
 ### Make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis)
 
 ```{r compare_days}
-activity.by_interval.by_date_type <-
-    group_by(activity.fill_missing.add_factor, date.type, interval) %>%
+activity.by_interval.by_date_type <- activity.fill_missing.add_factor %>%
+    group_by(date.type, interval) %>%
     summarize(average_steps = mean(steps))
 
 xyplot(
